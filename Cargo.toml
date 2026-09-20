@@ -24,7 +24,7 @@ serde_yaml = "0.9"
 mdxport = { version = "0.3.2", default-features = false }
 typst = "0.13"
 typst-svg = "0.13"
-typst-pdf = "0.13"
+typst-pdf = "0.15"
 typst-assets = "0.13"
 
 [profile.release]
