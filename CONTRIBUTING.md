@@ -41,11 +41,16 @@ cargo clippy --workspace --all-targets
 
 ## Continuous integration
 
-Every push and pull request runs the GitHub Actions workflow in `.github/workflows/ci.yml` on
-`ubuntu-latest`:
+Every push to `main` and every pull request runs the GitHub Actions workflow in
+`.github/workflows/ci.yml` on `ubuntu-latest`:
 
-- `cargo build --workspace --release`
-- `cargo test --workspace`
+- `cargo fmt --all --check`
+- `cargo clippy --workspace --all-targets --locked -- -D warnings`
+- `cargo build --workspace --release --locked`
+- `cargo test --workspace --locked`
+- `cargo doc --workspace --no-deps --locked`
+
+The job installs `fonts-noto-cjk` first, so the CJK rendering tests are deterministic.
 
 **CI must pass before a pull request can be merged.** If CI fails, treat it as a real signal: bisect and
 fix the underlying cause rather than disabling or deleting the failing test. Running the same commands
@@ -102,6 +107,42 @@ To add a command:
 
 **Both the matcher and its unit test must be updated together.** A new mapping without a test will be
 asked for changes during review, because the translation output is what document rendering depends on.
+
+## Upgrading Typst
+
+The engine embeds `typst` as a library, so a Typst upgrade is an API migration rather than a version
+bump. Two constraints make that sharper than usual:
+
+1. **The family moves together.** `typst`, `typst-svg`, `typst-pdf`, and `typst-assets` must stay on the
+   same minor version. Cargo will happily resolve `typst 0.13` next to `typst-svg 0.15`, but the graph
+   then contains two `typst-library` versions and the build fails on type mismatches between them
+   (`E0308`, `E0593`, `E0599`) — for example `typst_svg::svg` expects the 0.15 `typst_layout::Page`
+   while the engine passes the 0.13 `typst::layout::Page`.
+2. **`mdxport` pins Typst too.** `mdxport` depends on `typst = "0.13"`, so it keeps pulling the 0.13
+   family even when this crate moves on. That is tolerable only because no Typst types cross the
+   `mdxport` boundary — the engine uses `mdxport` for frontmatter parsing and Markdown → Typst
+   conversion, not for compilation. Note the one exception: rendering *without* a `template_id` falls
+   back to `mdxport::markdown_to_pdf`, which compiles with `mdxport`'s own Typst version.
+
+To upgrade:
+
+1. Bump `typst`, `typst-svg`, `typst-pdf`, and `typst-assets` together in the root `Cargo.toml`.
+2. Run `cargo build --workspace` and fix the API changes. Expect to start with the `World`
+   implementation in `crates/somadoc-engine/src/svg_out.rs`, which implements `typst::World` directly,
+   and then the `typst_svg` / `typst_pdf` call sites.
+3. Run the full suite (`cargo test --workspace`). The tests in `crates/somadoc-engine/src/typst.rs`
+   render real PDFs and SVGs, so they catch both compile- and layout-level regressions.
+4. Re-render a document with the reference template and read the output over.
+
+Because these bumps are breaking, Dependabot is configured to ignore `typst*` minor updates (see
+`.github/dependabot.yml`); patch releases are still proposed automatically.
+`typst::utils::LazyHash` is a re-export of the internal `typst-utils` helper crate, so it is usable but
+sits outside Typst's documented stability surface — re-check it on every upgrade.
+
+Prefer upstreaming a change you need (or working around it at the Typst-source level, as the engine
+already does for booktabs bottom rules and thematic-break width) over forking Typst. The project uses
+upstream `typst` from crates.io with no `[patch]` and no git dependency, and a fork would add a
+substantial maintenance burden.
 
 ## Commit messages
 
