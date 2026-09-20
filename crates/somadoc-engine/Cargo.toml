@@ -1,0 +1,29 @@
+[package]
+name = "somadoc-engine"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Pure-Rust engine: Markdown (+ handwritten LaTeX) -> Typst -> PDF / per-page SVG"
+readme = "../../README.md"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+base64.workspace = true
+serde_yaml.workspace = true
+somadoc-core = { version = "0.1.0", path = "../somadoc-core" }
+mdxport.workspace = true
+typst.workspace = true
+typst-svg.workspace = true
+typst-pdf.workspace = true
+typst-assets.workspace = true
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros"] }

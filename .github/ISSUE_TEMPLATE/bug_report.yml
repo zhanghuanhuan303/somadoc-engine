@@ -1,0 +1,96 @@
+name: Bug report
+description: Report a problem with somadoc-engine, such as incorrect rendering or a crash.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. Because this project renders
+        documents, the fastest way to a fix is usually a minimal Markdown input that
+        reproduces the problem.
+
+        Please do not use this form for security vulnerabilities — see SECURITY.md for the
+        private reporting process.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce the behavior? Include the template slug and any request fields that matter.
+      placeholder: |
+        1. Render the Markdown below with template `soma`
+        2. Export to PDF
+        3. Observe the missing table border
+    validations:
+      required: true
+  - type: textarea
+    id: markdown-input
+    attributes:
+      label: Minimal Markdown input
+      description: The smallest Markdown document that still triggers the bug. Trim it down if you can.
+      render: markdown
+      placeholder: |
+        # Hello
+
+        A paragraph with a footnote.[^1]
+
+        [^1]: The footnote text.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+      description: What actually happened? Describe the rendered output or the error, and attach a screenshot or PDF if it helps.
+    validations:
+      required: true
+  - type: input
+    id: somadoc-version
+    attributes:
+      label: somadoc-engine version
+      description: The version you are using, or the commit hash if you built from git.
+      placeholder: "0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: rust-version
+    attributes:
+      label: Rust version
+      description: The output of `rustc --version`.
+      placeholder: "rustc 1.85.0 (4d91de4e4 2025-02-17)"
+    validations:
+      required: false
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Any error output, panic messages, or backtraces. This is optional but often decisive.
+      render: shell
+    validations:
+      required: false
