@@ -4,7 +4,19 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 5
+    ignore:
+      # typst 0.13 -> 0.14/0.15 is a breaking API change across the whole typst
+      # family: mixing versions splits the graph across two typst-library
+      # versions, and e.g. typst-svg 0.15 changed the `svg()` signature. mdxport
+      # also pins typst 0.13 today, so typst upgrades are done deliberately
+      # rather than by Dependabot. Patch releases are still proposed.
+      - dependency-name: "typst*"
+        update-types: ["version-update:semver-minor"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]
