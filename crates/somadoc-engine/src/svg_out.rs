@@ -595,6 +595,29 @@ struct FontStore {
 
 static FONT_STORE: OnceLock<FontStore> = OnceLock::new();
 
+/// Font blobs supplied by the host process at runtime (for the browser build:
+/// CJK faces fetched next to the WASM, since `typst-assets` ships Latin + math
+/// only and wasm has no system font directories).
+static EXTRA_FONTS: Mutex<Vec<Bytes>> = Mutex::new(Vec::new());
+
+/// Register additional font files before the first compilation.
+///
+/// typst's `FontBook` is immutable once a `World` references it, so this must
+/// happen during start-up: later calls return an error instead of silently
+/// rendering with the wrong faces. Returns the number of registered files.
+pub fn register_fonts(fonts: &[Vec<u8>]) -> Result<usize, &'static str> {
+    if FONT_STORE.get().is_some() {
+        return Err(
+            "fonts are already initialised; register_fonts must run before the first compile",
+        );
+    }
+    let mut extra = EXTRA_FONTS.lock().unwrap();
+    for data in fonts {
+        extra.push(Bytes::new(data.clone()));
+    }
+    Ok(extra.len())
+}
+
 impl FontStore {
     fn global() -> &'static Self {
         FONT_STORE.get_or_init(|| {
@@ -602,6 +625,15 @@ impl FontStore {
             let mut fonts = Vec::new();
             for data in typst_assets::fonts() {
                 let bytes = Bytes::new(data);
+                add_font_data(
+                    &mut book,
+                    &mut fonts,
+                    bytes.clone(),
+                    FontSource::Data(bytes),
+                );
+            }
+            let extra: Vec<Bytes> = EXTRA_FONTS.lock().unwrap().clone();
+            for bytes in extra {
                 add_font_data(
                     &mut book,
                     &mut fonts,

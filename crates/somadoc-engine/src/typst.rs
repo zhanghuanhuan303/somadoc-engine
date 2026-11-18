@@ -15,16 +15,20 @@
 //! directories (`SOMADOC_FONTS_DIR` restricts that scan to a whitelist of directories).
 
 use std::path::Path;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
-use crate::types::{
-    InlineImage, RenderEngine, RenderError, RenderOutput, RenderRequest, RenderResult,
-};
+use crate::types::{InlineImage, RenderError, RenderRequest};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::types::{RenderEngine, RenderOutput, RenderResult};
+#[cfg(not(target_arch = "wasm32"))]
 use async_trait::async_trait;
 use base64::Engine;
 use typst::foundations::Bytes;
 
-use crate::common::{build_markdown, valid_slug};
+#[cfg(not(target_arch = "wasm32"))]
+use crate::common::build_markdown;
+use crate::common::valid_slug;
 use crate::images::ImageBytes;
 use crate::svg_out::AnchorSpec;
 
@@ -58,6 +62,8 @@ impl TypstEngine {
     /// Validate the requested slug and confirm its `template.typ` exists.
     ///
     /// An empty slug is allowed and means "use the built-in default style".
+    /// Only the filesystem template path calls this, hence the wasm allowance.
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     fn resolve_slug(&self, req: &RenderRequest) -> Result<String, RenderError> {
         let slug = req.template_id.clone().unwrap_or_default();
         if slug.is_empty() {
@@ -93,6 +99,7 @@ fn template_rel_typ(slug: &str) -> String {
     format!("{slug}/template.typ")
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 impl RenderEngine for TypstEngine {
     fn id(&self) -> &'static str {
@@ -325,7 +332,7 @@ impl TypstEngine {
         Ok((final_source, logo, image_inject.bytes, anchor_specs))
     }
 
-    fn render_blocking(
+    pub fn render_blocking(
         &self,
         slug: &str,
         markdown: &str,
@@ -333,6 +340,44 @@ impl TypstEngine {
     ) -> Result<Vec<u8>, RenderError> {
         let custom = self.read_custom_template(slug);
         Self::render_with_template_opt(markdown, custom.as_deref(), images)
+    }
+
+    /// Render per-page SVG with an in-memory template (WASM-friendly).
+    pub fn render_svg_template(
+        template: &str,
+        markdown: &str,
+        images: &[InlineImage],
+    ) -> Result<Vec<u8>, RenderError> {
+        Self::render_svg_with_template_opt(markdown, Some(template), images)
+    }
+
+    /// Incremental per-page SVG with an in-memory template (WASM-friendly).
+    ///
+    /// Reuses the session's persistent `World`, so typst only re-lays-out the
+    /// parts of the document that the `Source::replace` diff touched.
+    pub fn render_svg_template_incremental(
+        template: &str,
+        markdown: &str,
+        session_id: &str,
+        images: &[InlineImage],
+    ) -> Result<Vec<u8>, RenderError> {
+        let (src, logo, img_bytes, anchors) = Self::build_typst_source(markdown, template, images)?;
+        let (pages, source_map) =
+            crate::svg_out::render_pages_incremental(session_id, &src, logo, &img_bytes, &anchors)
+                .map_err(|e| {
+                    RenderError::Engine(format!("typst svg incremental compilation failed: {e}"))
+                })?;
+        let json = serde_json::json!({ "pages": pages, "anchors": source_map }).to_string();
+        Ok(json.into_bytes())
+    }
+
+    /// Render PDF with an in-memory template (WASM-friendly).
+    pub fn render_pdf_template(
+        template: &str,
+        markdown: &str,
+        images: &[InlineImage],
+    ) -> Result<Vec<u8>, RenderError> {
+        Self::render_with_template_opt(markdown, Some(template), images)
     }
 
     /// For live preview: render markdown into per-page SVG bytes (only for templates with template.typ).
